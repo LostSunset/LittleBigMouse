@@ -4,6 +4,7 @@ using LittleBigMouse.DisplayLayout;
 using Microsoft.Win32;
 using System.Globalization;
 using System.IO;
+using System.Security.Principal;
 using Avalonia;
 using LittleBigMouse.DisplayLayout.Dimensions;
 
@@ -29,8 +30,33 @@ public static class PersistencyExtensions
         return key?.OpenRegKey(@$"Layouts\{layout.Id}", create);
     }
 
-    public static void Load(this ILayoutOptions @this, RegistryKey key)
+    public static void Load(this ILayoutOptions @this, RegistryKey? mainKey, RegistryKey? key)
     {
+        if (mainKey == null) return;
+
+        // Options to be loaded from the main key, was previously loaded from the layout key
+        @this.DaemonPort = mainKey.GetOrSet("DaemonPort", () => 25196);
+        @this.Priority = mainKey.GetOrSet("Priority",  () => key.GetOrSet("Priority",() => "Normal"));
+        @this.PriorityUnhooked = mainKey.GetOrSet("PriorityUnhooked", () => key.GetOrSet("PriorityUnhooked",() => "Below"));
+
+        @this.HomeCinema = mainKey.GetOrSet("HomeCinema", () => key.GetOrSet("HomeCinema",() => false));
+        @this.Pinned = mainKey.GetOrSet("Pinned", () => key.GetOrSet("Pinned",() => false));
+        @this.AutoUpdate = mainKey.GetOrSet("AutoUpdate", () => key.GetOrSet("AutoUpdate",() => false));
+        @this.StartMinimized = mainKey.GetOrSet("StartMinimized", () => key.GetOrSet("StartMinimized",() => false));
+        @this.StartElevated = mainKey.GetOrSet("StartElevated", () => key.GetOrSet("StartElevated",() => false));
+
+        @this.ExcludedList.Clear();
+
+        var file = @this.GetConfigPath("Excluded.txt",true);
+        if (!File.Exists(file)) return;
+
+        foreach (var line in File.ReadAllLines(file))
+        {
+            @this.ExcludedList.Add(line);
+        }
+
+        if (key == null) return;
+        // Options to be loaded from the layout key
         @this.AllowOverlaps = key.GetOrSet("AllowOverlaps", () => false);
         @this.AllowDiscontinuity = key.GetOrSet("AllowDiscontinuity", () => false);
 
@@ -45,46 +71,40 @@ public static class PersistencyExtensions
         @this.Priority = key.GetOrSet("Priority", () => "Normal");
         @this.PriorityUnhooked = key.GetOrSet("PriorityUnhooked", () => "Below");
 
-        @this.HomeCinema = key.GetOrSet("HomeCinema", () => false);
-        @this.Pinned = key.GetOrSet("Pinned", () => false);
-        @this.AutoUpdate = key.GetOrSet("AutoUpdate", () => false);
-        @this.StartMinimized = key.GetOrSet("StartMinimized", () => false);
-        @this.StartElevated = key.GetOrSet("StartElevated", () => false);
-
-        @this.ExcludedList.Clear();
-
-        var path = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var file = Path.Combine(path,"Mgth","LittleBigMouse","Excluded.txt");
-        if (!File.Exists(file)) return;
-
-        foreach (var line in File.ReadAllLines(file))
-        {
-            @this.ExcludedList.Add(line);
-        }
-
         @this.Saved = true;
     }
+
+    static bool IsProcessElevated()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
 
     //==================//
     // Layout           //
     //==================//
     public static void Load(this MonitorsLayout @this)
     {
-        using (var key = @this.OpenRegKey(true))
+        using var mainKey = OpenRootRegKey(true);
+        using var key = @this.OpenRegKey(true);
+
+        @this.Options.LoadAtStartup = @this.IsScheduled();
+
+        @this.Options.Elevated = IsProcessElevated();
+
+        @this.Options.Load(mainKey, key);
+
+        if (key != null)
         {
-
-            @this.Options.LoadAtStartup = @this.IsScheduled();
-            if (key != null)
+            foreach (var monitor in @this.PhysicalMonitors)
             {
-                @this.Options.Load(key);
-
-                foreach (var monitor in @this.PhysicalMonitors)
-                {
-                    monitor.Model.Load();
-                    monitor.Load();
-                }
+                monitor.Model.Load();
+                monitor.Load();
             }
         }
+        
         @this.Saved = true;
         @this.UpdatePhysicalMonitors();
     }
@@ -101,50 +121,52 @@ public static class PersistencyExtensions
         return true;
     }
 
-    public static void Save(this ILayoutOptions @this, RegistryKey k)
+    public static void Save(this ILayoutOptions @this, RegistryKey? mainKey, RegistryKey? key)
     {
-        k.SetKey("AllowOverlaps", @this.AllowOverlaps);
-        k.SetKey("AllowDiscontinuity", @this.AllowDiscontinuity);
+        if (mainKey == null) return;
+        mainKey.SetKey("Priority", @this.Priority);
 
-        k.SetKey("Algorithm", @this.Algorithm);
-        k.SetKey("MaxTravelDistance", @this.MaxTravelDistance);
-        k.SetKey("LoopX", @this.LoopX);
-        k.SetKey("LoopY", @this.LoopY);
+        mainKey.SetKey("Pinned", @this.Pinned);
+        mainKey.SetKey("AutoUpdate", @this.AutoUpdate);
+        mainKey.SetKey("StartMinimized", @this.StartMinimized);
+        mainKey.SetKey("StartElevated", @this.StartElevated);
 
-        k.SetKey("Enabled",  @this.Enabled);
-        k.SetKey("AdjustPointer",  @this.AdjustPointer);
-        k.SetKey("AdjustSpeed", @this.AdjustSpeed );
-        k.SetKey("Priority", @this.Priority);
+        var file = @this.GetConfigPath("Excluded.txt",true);
 
-        k.SetKey("HomeCinema", @this.HomeCinema);
-        k.SetKey("Pinned", @this.Pinned);
-        k.SetKey("AutoUpdate", @this.AutoUpdate);
-        k.SetKey("StartMinimized", @this.StartMinimized);
-        k.SetKey("StartElevated", @this.StartElevated);
+        using var sw = File.CreateText(file);
 
-        var path = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var file = Path.Combine(path,"Mgth","LittleBigMouse","Excluded.txt");
-
-        using (var sw = File.CreateText(file))
+        foreach (var line in @this.ExcludedList)
         {
-            foreach (var line in @this.ExcludedList)
-            {
-                sw.WriteLine(line);
-            }
-            sw.Close();
+            sw.WriteLine(line);
         }
+        sw.Close();
+
+        if (key == null) return;
+        key.SetKey("AllowOverlaps", @this.AllowOverlaps);
+        key.SetKey("AllowDiscontinuity", @this.AllowDiscontinuity);
+
+        key.SetKey("Algorithm", @this.Algorithm);
+        key.SetKey("MaxTravelDistance", @this.MaxTravelDistance);
+        key.SetKey("LoopX", @this.LoopX);
+        key.SetKey("LoopY", @this.LoopY);
+
+        key.SetKey("Enabled",  @this.Enabled);
+        key.SetKey("AdjustPointer",  @this.AdjustPointer);
+        key.SetKey("AdjustSpeed", @this.AdjustSpeed );
+
+        key.SetKey("HomeCinema", @this.HomeCinema);
 
         @this.Saved = true;
     }
 
     public static bool Save(this MonitorsLayout @this)
     {
-        using var k = @this.OpenRegKey(true);
-        if (k == null) return false;
+        using var mainKey = OpenRootRegKey(true);
+        using var key = @this.OpenRegKey(true);
 
         if (@this.Options.LoadAtStartup) @this.Schedule(@this.Options.StartElevated); else @this.Unschedule();
 
-        @this.Options.Save(k);
+        @this.Options.Save(mainKey, key);
 
         foreach (var monitor in @this.PhysicalMonitors)
         {

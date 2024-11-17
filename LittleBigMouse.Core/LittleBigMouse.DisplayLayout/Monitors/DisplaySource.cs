@@ -2,7 +2,7 @@
 using System.Runtime.Serialization;
 using Avalonia;
 using Avalonia.Media;
-using HLab.Base.Avalonia;
+using HLab.Base.ReactiveUI;
 using ReactiveUI;
 
 namespace LittleBigMouse.DisplayLayout.Monitors;
@@ -20,7 +20,7 @@ public enum WallpaperStyle
 /// <summary>
 /// 
 /// </summary>
-public class DisplaySource : ReactiveModel
+public class DisplaySource : SavableReactiveModel
 {
     public string Id { get; }
 

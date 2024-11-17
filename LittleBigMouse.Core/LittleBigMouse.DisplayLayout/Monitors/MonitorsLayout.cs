@@ -13,11 +13,9 @@ using Avalonia;
 using Avalonia.Controls;
 using DynamicData;
 using DynamicData.Binding;
-using HLab.Base.Avalonia;
-using HLab.Base.Avalonia.Extensions;
+using HLab.Base.ReactiveUI;
 using HLab.Sys.Windows.API;
 using LittleBigMouse.DisplayLayout.Monitors.Extensions;
-using LittleBigMouse.Zoning;
 using Microsoft.Win32.TaskScheduler;
 using ReactiveUI;
 
@@ -27,7 +25,7 @@ namespace LittleBigMouse.DisplayLayout.Monitors;
 /// 
 /// </summary>
 [DataContract]
-public class MonitorsLayout : ReactiveModel, IMonitorsLayout
+public class MonitorsLayout : SavableReactiveModel, IMonitorsLayout
 {
     public MonitorsLayout(ILayoutOptions options)
     {
@@ -183,17 +181,8 @@ public class MonitorsLayout : ReactiveModel, IMonitorsLayout
     PhysicalMonitor? _selected;
 
 
-    internal static string LayoutPath(string layoutId, bool create)
-    {
-        var path = Path.Combine(Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData), "LittleBigMouse", layoutId);
 
-        if (create) Directory.CreateDirectory(path);
-
-        return path;
-    }
-
-    public string LayoutPath(bool create) => LayoutPath(Id, create);
+    public string LayoutPath(bool create) => Options.GetConfigPath(Id, create);
 
     public void EnumWmi()
     {

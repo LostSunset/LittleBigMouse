@@ -28,20 +28,18 @@ using System.Reactive.Linq;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using DynamicData;
-using HLab.Base.Avalonia;
-using HLab.Base.Avalonia.Extensions;
+using HLab.Base.ReactiveUI;
 
 //using HLab.Sys.Windows.Monitors;
 
 using LittleBigMouse.DisplayLayout.Dimensions;
-using LittleBigMouse.Zoning;
 using ReactiveUI;
 
 
 namespace LittleBigMouse.DisplayLayout.Monitors;
 
 [DataContract]
-public class PhysicalMonitor : ReactiveModel
+public class PhysicalMonitor : SavableReactiveModel
 {
     public class Design : PhysicalMonitor
     {

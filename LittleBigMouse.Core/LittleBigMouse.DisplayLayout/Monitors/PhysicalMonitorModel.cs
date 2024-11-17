@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Runtime.Serialization;
-using HLab.Base.Avalonia;
+using HLab.Base.ReactiveUI;
 using LittleBigMouse.DisplayLayout.Dimensions;
 using ReactiveUI;
 
@@ -10,7 +10,7 @@ namespace LittleBigMouse.DisplayLayout.Monitors;
 /// Defines monitor physical properties (size, brand, model, etc...)
 /// </summary>
 [DataContract]
-public class PhysicalMonitorModel : ReactiveModel
+public class PhysicalMonitorModel : SavableReactiveModel
 {
     public static PhysicalMonitorModel Design
     {

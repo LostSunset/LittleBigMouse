@@ -11,6 +11,7 @@ using DynamicData;
 using DynamicData.Binding;
 using HLab.Base.Avalonia;
 using HLab.Base.Avalonia.Extensions;
+using HLab.Base.ReactiveUI;
 using HLab.Mvvm.Annotations;
 using HLab.Mvvm.ReactiveUI;
 using LittleBigMouse.DisplayLayout.Monitors;
@@ -73,7 +74,7 @@ public class MainViewModel : ViewModel, IMainViewModel, IMainPluginsViewModel
     public IMainService? MainService 
     { 
         get => _mainService; 
-        set => SetAndRaise(ref _mainService, value);
+        set => this.SetAndRaise(ref _mainService, value);
     }
     IMainService? _mainService;
 
